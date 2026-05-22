@@ -1,0 +1,19 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+nodes:
+  - role: control-plane
+    # HPAScaleToZero Feature Gate を kube-apiserver と kube-controller-manager の両方で有効化する。
+    # kube-controller-manager 側でも有効にしないと HPA reconcile ループが Feature Gate を参照できない。
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            feature-gates: "HPAScaleToZero=true"
+        controllerManager:
+          extraArgs:
+            feature-gates: "HPAScaleToZero=true"
+
+  - role: worker
+  - role: worker
