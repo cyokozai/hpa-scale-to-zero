@@ -33,7 +33,7 @@ K8s 本体の alpha 実装と KEDA の設計思想・制御フローの差異を
 
 ### 重要な設計差異（事前調査済み）
 
-| | K8s v1.36 alpha | KEDA v2.16 |
+| 項目 | K8s v1.36 alpha | KEDA v2.16 |
 |---|---|---|
 | アクティブ判定の場所 | horizontal.go（外部） | Scaler 内部（取得と一体） |
 | Kafka への接続方法 | External Metrics API 経由 | sarama で直接 Broker 接続 |
