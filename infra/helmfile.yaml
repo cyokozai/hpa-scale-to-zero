@@ -1,0 +1,41 @@
+repositories:
+  - name: kedacore
+    url: https://kedacore.github.io/charts
+  - name: strimzi
+    url: https://strimzi.io/charts
+
+releases:
+  # KEDA v2.16
+  # KEDAはHPAをラップして動作する。ScaledObjectを作成するとHPAを自動生成し、
+  # kafka_scaler.goがKafka BrokerへsaramaでConsumer Group Lagを直接問い合わせる。
+  - name: keda
+    namespace: keda
+    createNamespace: true
+    chart: kedacore/keda
+    version: "2.16.0"
+    values:
+      - resources:
+          operator:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+  # Strimzi Kafka Operator
+  # Kafka on Kubernetes を管理する。Kafka / KafkaTopic / KafkaUser リソースを提供する。
+  # Consumer Group Lag メトリクスの発生源として使用する。
+  - name: strimzi
+    namespace: strimzi
+    createNamespace: true
+    chart: strimzi/strimzi-kafka-operator
+    version: "0.45.0"
+    values:
+      - resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
