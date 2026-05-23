@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-producer
+  namespace: default
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: producer
+          image: quay.io/strimzi/kafka:1.0.0-kafka-4.2.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              seq 1 1000 | /opt/kafka/bin/kafka-console-producer.sh \
+                --bootstrap-server demo-kafka-bootstrap.kafka.svc:9092 \
+                --topic demo-topic
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
