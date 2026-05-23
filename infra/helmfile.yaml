@@ -30,7 +30,9 @@ releases:
     namespace: strimzi
     createNamespace: true
     chart: strimzi/strimzi-kafka-operator
-    version: "0.45.0"
+    # 0.45.0 は Kubernetes v1.36 の /version API に追加された emulationMajor フィールドを
+    # fabric8 client が認識できずクラッシュする。1.0.0 で修正済み。
+    version: "1.0.0"
     values:
       - resources:
           requests:
