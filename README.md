@@ -47,15 +47,19 @@ docs/
 
 ```
 infra/
-├── kind-config.yaml   # kind クラスター設定（HPAScaleToZero Feature Gate 有効）
+├── k3d-config.yaml    # k3d クラスター設定（HPAScaleToZero Feature Gate 有効、k3s v1.36）
+├── kind-config.yaml   # kind クラスター設定（kindest/node:v1.36 リリース時用）
 └── helmfile.yaml      # KEDA v2.16 + Strimzi 一括管理
 ```
+
+> **注:** `kindest/node:v1.36` が未リリースのため、現在は k3d + `rancher/k3s:v1.36.1-k3s1` を使用する。
+> 実行環境は PVE 上の Ubuntu 24.04 VM（ssh cyokozai@10.2.128.155）。
 
 ### セットアップ手順
 
 ```bash
-# kind クラスター作成（HPAScaleToZero Feature Gate 有効）
-kind create cluster --config infra/kind-config.yaml --name hpa-scale-to-zero
+# k3d クラスター作成（HPAScaleToZero Feature Gate 有効）
+k3d cluster create --config infra/k3d-config.yaml
 
 # KEDA + Strimzi インストール
 helmfile -f infra/helmfile.yaml apply
