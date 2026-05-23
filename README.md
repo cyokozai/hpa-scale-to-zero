@@ -53,7 +53,7 @@ infra/
 ```
 
 > **注:** `kindest/node:v1.36` が未リリースのため、現在は k3d + `rancher/k3s:v1.36.1-k3s1` を使用する。
-> 実行環境は PVE 上の Ubuntu 24.04 VM（ssh cyokozai@10.2.128.155）。
+> 実行環境は PVE 上の Ubuntu 24.04 VM（ssh `<user>@<host>`）。
 
 ### セットアップ手順
 

@@ -153,7 +153,7 @@ func (s *kafkaScaler) getLagForPartition(
     latestOffset := topicPartitionOffsets[topic][partitionID]
 
     // excludePersistentLag 機能: 前回と同じ offset のパーティションは lag を 0 とみなす
-    // 消費できない（stuck した）パーティムションへの過剰スケールアウトを防ぐ
+    // 消費できない（stuck した）パーティションへの過剰スケールアウトを防ぐ
     if s.metadata.excludePersistentLag {
         switch previousOffset, found := s.previousOffsets[topic][partitionID]; {
         case !found:
