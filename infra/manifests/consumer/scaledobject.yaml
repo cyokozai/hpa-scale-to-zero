@@ -7,7 +7,7 @@ spec:
   scaleTargetRef:
     name: kafka-consumer
   pollingInterval: 15
-  cooldownPeriod: 300
+  cooldownPeriod: 60
   minReplicaCount: 0
   maxReplicaCount: 3
   triggers:

@@ -1,28 +1,10 @@
 repositories:
-  - name: kedacore
-    url: https://kedacore.github.io/charts
   - name: strimzi
     url: https://strimzi.io/charts
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
 
 releases:
-  # KEDA v2.16
-  # KEDAはHPAをラップして動作する。ScaledObjectを作成するとHPAを自動生成し、
-  # kafka_scaler.goがKafka BrokerへsaramaでConsumer Group Lagを直接問い合わせる。
-  - name: keda
-    namespace: keda
-    createNamespace: true
-    chart: kedacore/keda
-    version: "2.16.0"
-    values:
-      - resources:
-          operator:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
-
   # Strimzi Kafka Operator
   # Kafka on Kubernetes を管理する。Kafka / KafkaTopic / KafkaUser リソースを提供する。
   # Consumer Group Lag メトリクスの発生源として使用する。
@@ -41,3 +23,50 @@ releases:
           limits:
             cpu: 1000m
             memory: 512Mi
+
+  # Prometheus
+  # Strimzi Kafka Exporter が公開する kafka_consumergroup_lag を収集する。
+  # K8s HPAScaleToZero / KEDA 両クラスターで共通して使用する。
+  - name: prometheus
+    namespace: monitoring
+    createNamespace: true
+    chart: prometheus-community/prometheus
+    version: "27.3.0"
+    values:
+      - alertmanager:
+          enabled: false
+        prometheus-pushgateway:
+          enabled: false
+        kube-state-metrics:
+          enabled: false
+        prometheus-node-exporter:
+          enabled: false
+        server:
+          persistentVolume:
+            enabled: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          global:
+            # Kafka Exporter を 15 秒ごとにスクレイプ
+            # デフォルト 1 分では HPA の反応が遅すぎるため短縮する
+            scrape_interval: 15s
+            evaluation_interval: 15s
+        serverFiles:
+          prometheus.yml:
+            scrape_configs:
+              - job_name: kafka-exporter
+                scrape_interval: 15s
+                static_configs:
+                  - targets:
+                      - demo-kafka-exporter.kafka.svc:9404
+                # prometheus-adapter が External Metrics API の namespace パスを
+                # Prometheus ラベルに変換できるよう namespace ラベルを付与する
+                metric_relabel_configs:
+                  - source_labels: []
+                    target_label: namespace
+                    replacement: default

@@ -23,3 +23,8 @@ spec:
   entityOperator:
     topicOperator: {}
     userOperator: {}
+  # Kafka Exporter: kafka_consumergroup_lag を Prometheus 形式で :9404 に公開する
+  # Prometheus がスクレイプし、prometheus-adapter が External Metrics API に変換する
+  kafkaExporter:
+    topicRegex: ".*"
+    groupRegex: ".*"
