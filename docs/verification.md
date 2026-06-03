@@ -757,6 +757,69 @@ D-10 / D-11 いずれも `FailedGetExternalMetric` 状態では:
 
 ---
 
+## 実測結果（2026-06-03 KEDA テストラン）
+
+### 検証タイムライン（実測ログ）
+
+```
+時刻       replicas  active  lag    イベント
+─────────────────────────────────────────────────────────────────────
+20:10:13      0      False    0     [初期状態] ScaledObject Active=False, lag=0
+20:10:20      0      False  1000    Producer 完了 → lag 1000 に上昇
+20:10:35      0      False  1000    KEDA ポーリング待ち（pollingInterval=15s）
+20:10:36      0→3    True   1000  ★ KEDAScaleTargetActivated: 0→1 (triggered by kafkaScaler)
+                                    ★ HPA SuccessfulRescale: 1→3 (同秒内に 2ステップ完了)
+20:10:51      3      True     0     Consumer が 1000 メッセージを全消化 → lag=0
+20:11:07      3      False    0     active=False（LastActiveTime=20:10:51 記録）
+20:11:51      3→0    False    0   ★ KEDAScaleTargetDeactivated: 3→0
+                                    LastActiveTime(11:10:51) + cooldown(60s) = 11:11:51 ✓
+```
+
+### Scale from Zero の 2ステップ（Kubernetes Events）
+
+```
+11:10:36  KEDAScaleTargetActivated (Normal / ScaledObject)
+          "Scaled apps/v1.Deployment default/kafka-consumer from 0 to 1, triggered by kafkaScaler"
+
+11:10:36  ScalingReplicaSet: 0 → 1  ← KEDA が scale subresource を直接操作
+11:10:36  SuccessfulRescale (HPA): New size: 3
+          "external metric s0-kafka-demo-topic above target"
+11:10:36  ScalingReplicaSet: 1 → 3  ← HPA が引き継ぎ
+```
+
+0→1（KEDA）と 1→3（HPA）が **同一秒内** に完結。
+監視間隔（3s）では 0→3 の 1ステップに見えるが、イベントログで 2ステップを確認。
+
+### Scale to Zero（Kubernetes Events）
+
+```
+11:11:51  KEDAScaleTargetDeactivated (Normal / ScaledObject)
+          "Deactivated apps/v1.Deployment default/kafka-consumer from 3 to 0"
+
+11:11:51  ScalingReplicaSet: 3 → 0
+```
+
+cooldownPeriod(60s) の誤差ゼロ（LastActiveTime + 60s = 実発火時刻）を確認。
+
+### Scale from Zero レイテンシ（今回計測）
+
+| 計測点 | 時刻 | 経過 |
+|---|---|---|
+| lag 上昇（Producer 完了） | 20:10:20 | 0s |
+| replicas=3 確認 | 20:10:43 | **+23s** |
+
+前回 A-1 実測（平均 17s、最大 23s）と一致。
+
+### Component 分析との対応（2026-06-03 確認）
+
+| 観測イベント | コードの実装（Component） |
+|---|---|
+| `KEDAScaleTargetActivated: 0→1` | `scaleFromZeroOrIdle()` — `max(minReplicaCount=0, 1)=1` (Component 4) |
+| `SuccessfulRescale: 1→3` | HPA 通常ループ `getUsageRatioReplicaCount()` (Component 4) |
+| `KEDAScaleTargetDeactivated: 3→0` | `scaleToZeroOrIdle()` — `LastActiveTime + cooldown < now` (Component 3) |
+
+---
+
 ### KEDA vs K8s HPAScaleToZero 実測サマリ
 
 | 観察項目 | KEDA v2.16 | K8s HPAScaleToZero v1.36 |
