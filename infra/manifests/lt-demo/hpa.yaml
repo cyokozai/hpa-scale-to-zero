@@ -1,0 +1,44 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: demo-app-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: demo-app
+  minReplicas: 0
+  maxReplicas: 3
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: queue_length
+          selector:
+            matchLabels:
+              job: demo-queue
+        target:
+          # queue_length / AverageValue = desiredReplicas
+          type: AverageValue
+          averageValue: "10"
+  behavior:
+    scaleDown:
+      # 旧 Kafka 検証と揃える (KEDA cooldownPeriod=60s と同基準)
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        # Percent:100 は currentReplicas=0 のとき 0×100%=0 になるため、
+        # Scale from Zero では Pods ポリシーが maxReplicas まで一発スケールアップする
+        - type: Pods
+          value: 3
+          periodSeconds: 15

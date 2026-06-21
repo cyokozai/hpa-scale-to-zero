@@ -1,0 +1,15 @@
+[2026-06-18T06:44:18Z] LT batch start: count=5, duration=180s, gap=30s, push_zero_at=90s
+[2026-06-18T06:44:18Z] Estimated total: 17 min
+[2026-06-18T06:44:18Z] preflight: push queue_length=0 and wait for replicas=0
+[2026-06-18T06:44:20Z] preflight: replicas=0 confirmed
+[2026-06-18T06:44:20Z] === run 1/5 ===
+[2026-06-18T06:47:24Z] === run 1/5 done ===
+[2026-06-18T06:47:54Z] === run 2/5 ===
+[2026-06-18T06:51:02Z] === run 2/5 done ===
+[2026-06-18T06:51:32Z] === run 3/5 ===
+[2026-06-18T06:54:39Z] === run 3/5 done ===
+[2026-06-18T06:55:09Z] === run 4/5 ===
+[2026-06-18T06:58:17Z] === run 4/5 done ===
+[2026-06-18T06:58:47Z] === run 5/5 ===
+[2026-06-18T07:01:55Z] === run 5/5 done ===
+[2026-06-18T07:01:55Z] batch complete

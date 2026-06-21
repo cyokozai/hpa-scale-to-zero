@@ -3,6 +3,11 @@
 
 .env
 
+# ============================== 作業用クローン（リポジトリに含めない） ============================== #
+
+k8s-1.36/
+keda-2.16/
+
 
 # ============================== Terraform ============================== #
 
@@ -131,3 +136,6 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,macos,windows
+.venv/
+
+scripts/__pycache__

@@ -1,0 +1,45 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: kafka-consumer-k8s-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: kafka-consumer-k8s
+  minReplicas: 0
+  maxReplicas: 3
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: kafka_consumergroup_lag_total
+          selector:
+            matchLabels:
+              consumergroup: demo-consumer-group-k8s
+              topic: demo-topic
+        target:
+          # 合計 lag / AverageValue = desiredReplicas（KEDA の lagThreshold=10 と同一基準）
+          type: AverageValue
+          averageValue: "10"
+  behavior:
+    scaleDown:
+      # KEDA の cooldownPeriod: 60 と揃える
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        # Percent:100 は currentReplicas=0 のとき 0×100%=0 になるため、
+        # Scale from Zero では Pods ポリシーが maxReplicas まで一発スケールアップする
+        - type: Pods
+          value: 3
+          periodSeconds: 15

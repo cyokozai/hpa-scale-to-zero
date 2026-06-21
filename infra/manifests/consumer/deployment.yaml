@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-consumer
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer
+    spec:
+      containers:
+        - name: consumer
+          image: quay.io/strimzi/kafka:1.0.0-kafka-4.2.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              /opt/kafka/bin/kafka-console-consumer.sh \
+                --bootstrap-server demo-kafka-bootstrap.kafka.svc:9092 \
+                --topic demo-topic \
+                --group demo-consumer-group \
+                --consumer-property enable.auto.commit=true \
+                --consumer-property auto.commit.interval.ms=1000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

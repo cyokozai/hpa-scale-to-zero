@@ -1,0 +1,12 @@
+[2026-06-18T06:47:57Z] role=hpa-pushgateway deploy=demo-app hpa=demo-app-hpa duration=180s push_zero_at=90s interval=5s out=/tmp/lt-measure-batch/run-2
+[2026-06-18T06:47:57Z] === MEASUREMENT START ===
+[2026-06-18T06:48:00Z] pushed queue_length=50 (Scale from Zero trigger)
+[2026-06-18T06:48:27Z] iter=6 replicas=3/3 desired=3 q_prom=50 q_ext=50
+[2026-06-18T06:49:00Z] iter=12 replicas=3/3 desired=3 q_prom=50 q_ext=50
+[2026-06-18T06:49:34Z] pushed queue_length=0 (Scale to Zero trigger)
+[2026-06-18T06:49:34Z] iter=18 replicas=3/3 desired=3 q_prom=50 q_ext=50
+[2026-06-18T06:50:07Z] iter=24 replicas=3/3 desired=3 q_prom=0 q_ext=0
+[2026-06-18T06:50:41Z] iter=30 replicas=0/0 desired=0 q_prom=0 q_ext=0
+[2026-06-18T06:51:02Z] === MEASUREMENT END ===
+[2026-06-18T06:51:02Z] CSV rows: 33 | events captured: 181
+[2026-06-18T06:51:02Z] Output: /tmp/lt-measure-batch/run-2

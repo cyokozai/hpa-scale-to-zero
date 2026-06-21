@@ -1,0 +1,24 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: hpa-scale-to-zero
+
+# kindest/node:v1.36 が未リリースのため k3d + rancher/k3s:v1.36.1-k3s1 を使用する。
+# k3s は HPA controller に upstream と同じコードを使用しているため Feature Gate の動作は変わらない。
+image: rancher/k3s:v1.36.1-k3s1
+
+servers: 1
+agents: 2
+
+options:
+  k3s:
+    extraArgs:
+      # HPAScaleToZero Feature Gate を kube-apiserver で有効化する。
+      # v1.36: Object/External メトリクスを持つ HPA のみ Scale to Zero が許可される。
+      - arg: "--kube-apiserver-arg=feature-gates=HPAScaleToZero=true"
+        nodeFilters:
+          - server:*
+      # kube-controller-manager 側でも有効にしないと reconcileAutoscaler() が Feature Gate を参照できない。
+      - arg: "--kube-controller-manager-arg=feature-gates=HPAScaleToZero=true"
+        nodeFilters:
+          - server:*
