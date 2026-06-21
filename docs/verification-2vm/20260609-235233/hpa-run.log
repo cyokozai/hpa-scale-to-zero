@@ -1,0 +1,12 @@
+[2026-06-09T23:52:37Z] role=hpa deploy=kafka-consumer-k8s hpa=kafka-consumer-k8s-hpa duration=180s interval=5s out=/tmp/measure-hpa
+[2026-06-09T23:52:37Z] Waiting 19s for sync...
+[2026-06-09T23:52:56Z] === MEASUREMENT START ===
+job.batch/kafka-producer created
+[2026-06-09T23:53:24Z] iter=6 replicas=0/3 desired=3 lag=1k
+[2026-06-09T23:53:57Z] iter=12 replicas=3/3 desired=3 lag=0
+[2026-06-09T23:54:30Z] iter=18 replicas=3/3 desired=3 lag=0
+[2026-06-09T23:55:03Z] iter=24 replicas=0/0 desired=0 lag=0
+[2026-06-09T23:55:37Z] iter=30 replicas=0/0 desired=0 lag=0
+[2026-06-09T23:55:58Z] === MEASUREMENT END ===
+[2026-06-09T23:55:58Z] CSV rows: 33 | events captured: 31
+[2026-06-09T23:55:58Z] Output: /tmp/measure-hpa

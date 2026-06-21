@@ -43,27 +43,80 @@ docs/
 
 ---
 
-## インフラ構成
+## インフラ構成（2 VM 分離）
+
+環境干渉ゼロでのフェアな比較のため、**HPA 用 VM と KEDA 用 VM を別々に用意**して
+それぞれに独立した k3d クラスターを構築する。
 
 ```
 infra/
-├── k3d-config.yaml    # k3d クラスター設定（HPAScaleToZero Feature Gate 有効、k3s v1.36）
-├── kind-config.yaml   # kind クラスター設定（kindest/node:v1.36 リリース時用）
-└── helmfile.yaml      # KEDA v2.16 + Strimzi 一括管理
+├── k3d-config.yaml       # 共通: k3d クラスター設定（HPAScaleToZero Feature Gate 有効、k3s v1.36）
+├── helmfile.yaml         # 共通: Strimzi 1.0.0 + Prometheus 27.3.0（scrape 15s）
+├── helmfile-k8s.yaml     # HPA 用 VM 専用: prometheus-adapter (External Metrics API)
+├── helmfile-keda.yaml    # KEDA 用 VM 専用: KEDA Operator
+└── manifests/
+    ├── kafka/            # 共通: KafkaNodePool + Kafka CR + KafkaTopic
+    ├── consumer/         # KEDA 用: kafka-consumer + ScaledObject
+    ├── consumer-k8s/     # HPA 用: kafka-consumer-k8s + HorizontalPodAutoscaler
+    └── producer/         # 共通: Producer Job
 ```
 
-> **注:** `kindest/node:v1.36` が未リリースのため、現在は k3d + `rancher/k3s:v1.36.1-k3s1` を使用する。
-> 実行環境は PVE 上の Ubuntu 24.04 VM（ssh cyokozai@10.2.128.155）。
+> **注:** `kindest/node:v1.36` が未リリースのため k3d + `rancher/k3s:v1.36.1-k3s1` を使用する。
+> 実行環境は PVE 上の Ubuntu 24.04 VM。
 
 ### セットアップ手順
 
+両 VM 共通の事前準備として `docker`, `kubectl`, `k3d`, `helm`, `helmfile` をインストールしておく。
+リポジトリを clone した状態から開始する。
+
+#### HPA 用 VM
+
 ```bash
-# k3d クラスター作成（HPAScaleToZero Feature Gate 有効）
+# 1. k3d クラスター作成（HPAScaleToZero Feature Gate 有効）
 k3d cluster create --config infra/k3d-config.yaml
 
-# KEDA + Strimzi インストール
-helmfile -f infra/helmfile.yaml apply
+# 2. 共通: Strimzi + Prometheus
+helmfile -f infra/helmfile.yaml sync
+
+# 3. HPA 用: prometheus-adapter
+helmfile -f infra/helmfile-k8s.yaml sync
+
+# 4. Strimzi が kafka namespace を監視するよう設定 → Kafka CR / Topic デプロイ
+#    （詳細は docs/verification.md Step 0〜2 を参照）
+kubectl apply -f infra/manifests/kafka/
+
+# 5. HPA 用 Consumer + HPA をデプロイ
+kubectl apply -f infra/manifests/consumer-k8s/
 ```
+
+#### KEDA 用 VM
+
+```bash
+# 1. k3d クラスター作成（HPAScaleToZero Feature Gate は KEDA 側では不要だが、揃えるため有効）
+k3d cluster create --config infra/k3d-config.yaml
+
+# 2. 共通: Strimzi + Prometheus
+helmfile -f infra/helmfile.yaml sync
+
+# 3. KEDA 用: KEDA Operator
+helmfile -f infra/helmfile-keda.yaml sync
+
+# 4. Kafka CR / Topic デプロイ
+kubectl apply -f infra/manifests/kafka/
+
+# 5. KEDA 用 Consumer + ScaledObject をデプロイ
+kubectl apply -f infra/manifests/consumer/
+```
+
+両 VM で同じ `Producer Job` を流して、HPA / KEDA それぞれの Scale to Zero ↔ Scale from Zero 挙動を比較する。
+
+```bash
+# 検証実行（両 VM で同じコマンド）
+kubectl apply -f infra/manifests/producer/job.yaml
+```
+
+> **注意:** prometheus-adapter と KEDA は `v1beta1.external.metrics.k8s.io` APIService を取り合うため、
+> 同一クラスターには共存できない。これが「VM 分離」が必要な理由でもある。
 
 ### 作業用ソースコードのクローン（リポジトリには含めない）
 
