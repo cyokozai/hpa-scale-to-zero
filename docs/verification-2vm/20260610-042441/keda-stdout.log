@@ -1,0 +1,16 @@
+[2026-06-10T04:24:44Z] role=keda deploy=kafka-consumer hpa=keda-hpa-kafka-consumer-scaler duration=300s interval=5s out=/tmp/measure-keda
+[2026-06-10T04:24:44Z] Waiting 29s for sync...
+[2026-06-10T04:25:13Z] === MEASUREMENT START ===
+job.batch/kafka-producer created
+[2026-06-10T04:25:42Z] iter=6 replicas=3/3 desired=3 lag_prom=1000 lag_ext=
+[2026-06-10T04:26:16Z] iter=12 replicas=3/3 desired=3 lag_prom=0 lag_ext=
+[2026-06-10T04:26:50Z] iter=18 replicas=0/0 desired=0 lag_prom=0 lag_ext=
+[2026-06-10T04:27:24Z] iter=24 replicas=0/0 desired=0 lag_prom=0 lag_ext=
+[2026-06-10T04:27:57Z] iter=30 replicas=0/0 desired=0 lag_prom=0 lag_ext=
+[2026-06-10T04:28:30Z] iter=36 replicas=0/0 desired=0 lag_prom=0 lag_ext=
+[2026-06-10T04:29:03Z] iter=42 replicas=0/0 desired=0 lag_prom=0 lag_ext=
+[2026-06-10T04:29:36Z] iter=48 replicas=0/0 desired=0 lag_prom=0 lag_ext=
+[2026-06-10T04:30:11Z] iter=54 replicas=0/0 desired=0 lag_prom=0 lag_ext=
+[2026-06-10T04:30:16Z] === MEASUREMENT END ===
+[2026-06-10T04:30:16Z] CSV rows: 54 | events captured: 99
+[2026-06-10T04:30:16Z] Output: /tmp/measure-keda
