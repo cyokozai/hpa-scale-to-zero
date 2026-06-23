@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """
-LT Pushgateway 構成専用の統計集計。
-aggregate.py の Scale to Zero 定義 (scale-up → scale-down) は
-Pushgateway 構成では人工 hold 時間 (push_zero_at) が混入するので、
-push 0 のタイムスタンプを起点にし直す。
+HPA Scale to Zero 計測結果の統計集計。
 
-Usage:
-  python3 scripts/lt-aggregate.py <batch_dir>
-  例: python3 scripts/lt-aggregate.py docs/verification-lt/batch-n5-20260618-072042
+各 run について以下の 2 つを計算:
+  - Scale from Zero: triggers.csv の "push 50" 時刻 →
+                     measurement.csv で 最初に replicas>=1 になった時刻 までの秒数
+  - Scale to Zero:   triggers.csv の "push 0"  時刻 →
+                     measurement.csv で 最初に replicas==0 になった時刻 までの秒数
+
+n run 分を集計して avg/σ/median/min/max を出力。
+依存: Python 標準ライブラリのみ。
+
+使い方:
+  python3 scripts/aggregate.py <batch_dir>
+  例: python3 scripts/aggregate.py /tmp/measure-batch
 """
+
 import csv
-import json
-import re
 import statistics
 import sys
 from datetime import datetime
@@ -22,154 +27,88 @@ def parse_ts(s: str) -> datetime:
     return datetime.fromisoformat(s.replace("Z", "+00:00"))
 
 
-def total_replicas(s: str) -> int:
-    try:
-        return int(s.split("/")[1])
-    except (IndexError, ValueError):
-        return 0
+def analyze_run(rundir: Path) -> dict | None:
+    csv_file = rundir / "measurement.csv"
+    triggers_file = rundir / "triggers.csv"
+    if not csv_file.exists() or not triggers_file.exists():
+        return None
 
+    # triggers.csv → push 50 / push 0 のタイムスタンプを取得
+    push_50 = push_0 = None
+    with open(triggers_file) as f:
+        for row in csv.DictReader(f):
+            ts = parse_ts(row["timestamp"])
+            if row["action"] == "push 50":
+                push_50 = ts
+            elif row["action"] == "push 0":
+                push_0 = ts
+    if not push_50 or not push_0:
+        return None
 
-def analyze_run(rundir: Path) -> dict:
-    csv_file = rundir / "hpa.csv"
-    log_file = rundir / "hpa-run.log"
-    events_file = rundir / "hpa-events.jsonl"
-
-    if not csv_file.exists():
-        return {"run_id": rundir.name, "error": "csv missing"}
-
-    # sync_ts = 最初の CSV 行 = push 50 完了直後
-    with open(csv_file) as f:
-        reader = csv.DictReader(f)
-        first_row = next(reader, None)
-        if not first_row:
-            return {"run_id": rundir.name, "error": "csv empty"}
-        sync_ts = parse_ts(first_row["timestamp"])
-
-    # push 0 タイムスタンプを run.log から取得
-    push_0_ts = None
-    if log_file.exists():
-        with open(log_file) as f:
-            for line in f:
-                m = re.search(r"\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)\]\s+pushed queue_length=0", line)
-                if m:
-                    push_0_ts = parse_ts(m.group(1))
-                    break
-
-    # CSV: 最初に replicas>=1 観測した時刻 (sampling 5s)
-    sfz_pod_ts = None
-    stz_pod_ts = None
+    # measurement.csv → 最初の replicas 遷移時刻を探す
+    sfz_ts = stz_ts = None
     with open(csv_file) as f:
         for row in csv.DictReader(f):
             ts = parse_ts(row["timestamp"])
-            tot = total_replicas(row["replicas"])
-            if sfz_pod_ts is None and tot >= 1:
-                sfz_pod_ts = ts
-            if sfz_pod_ts is not None and stz_pod_ts is None and ts > sfz_pod_ts and tot == 0:
-                stz_pod_ts = ts
-
-    # events.jsonl: SuccessfulRescale (New size: 3 / 0)
-    scale_up_event = None
-    scale_down_event = None
-    if events_file.exists():
-        with open(events_file) as f:
-            for line in f:
-                try:
-                    e = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if e.get("reason") != "SuccessfulRescale":
-                    continue
-                ts = parse_ts(e["ts"])
-                if ts < sync_ts:
-                    continue
-                msg = e.get("message", "")
-                if scale_up_event is None and "New size: 3" in msg:
-                    scale_up_event = ts
-                elif scale_up_event is not None and scale_down_event is None and "New size: 0" in msg:
-                    scale_down_event = ts
-
-    # メトリクス計算
-    # Scale from Zero (event): sync_ts → scale-up イベント
-    sfz_event = (scale_up_event - sync_ts).total_seconds() if scale_up_event else None
-    # Scale from Zero (pod observed): sync_ts → replicas>=1 観測
-    sfz_pod = (sfz_pod_ts - sync_ts).total_seconds() if sfz_pod_ts else None
-    # Scale to Zero (event): push_0 → scale-down イベント
-    stz_event = (scale_down_event - push_0_ts).total_seconds() if scale_down_event and push_0_ts else None
-    # Scale to Zero (pod observed): push_0 → replicas=0 観測
-    stz_pod = (stz_pod_ts - push_0_ts).total_seconds() if stz_pod_ts and push_0_ts else None
+            rep = int(row["replicas"])
+            if sfz_ts is None and ts >= push_50 and rep >= 1:
+                sfz_ts = ts
+            if stz_ts is None and ts >= push_0 and rep == 0:
+                stz_ts = ts
 
     return {
         "run_id": rundir.name,
-        "sync_ts": sync_ts.isoformat(),
-        "push_0_ts": push_0_ts.isoformat() if push_0_ts else None,
-        "sfz_event_s": sfz_event,
-        "sfz_pod_s": sfz_pod,
-        "stz_event_s": stz_event,
-        "stz_pod_s": stz_pod,
+        "sfz": (sfz_ts - push_50).total_seconds() if sfz_ts else None,
+        "stz": (stz_ts - push_0).total_seconds() if stz_ts else None,
     }
 
 
-def fmt_stats(values, unit="s"):
-    vs = [v for v in values if v is not None]
-    if not vs:
+def fmt_stats(values: list, unit: str = "s") -> str:
+    xs = [v for v in values if v is not None]
+    if not xs:
         return "n/a"
-    if len(vs) == 1:
-        return f"{vs[0]:.1f}{unit}"
-    avg = statistics.mean(vs)
-    sd = statistics.stdev(vs) if len(vs) >= 2 else 0
-    return f"avg {avg:.1f}{unit} (min {min(vs):.1f} / max {max(vs):.1f} / σ {sd:.2f})"
+    n = len(xs)
+    avg = statistics.mean(xs)
+    sd = statistics.stdev(xs) if n >= 2 else 0
+    med = statistics.median(xs)
+    return f"n={n}, mean={avg:.1f}{unit}, σ={sd:.2f}, median={med:.1f}, min={min(xs):.1f}, max={max(xs):.1f}"
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: lt-aggregate.py <batch_dir>", file=sys.stderr)
+        print("Usage: aggregate.py <batch_dir>", file=sys.stderr)
         sys.exit(2)
 
     batch_dir = Path(sys.argv[1])
-    run_dirs = sorted([p for p in batch_dir.iterdir() if p.is_dir() and p.name.startswith("run-")])
-    if not run_dirs:
-        print(f"No run-* directories under {batch_dir}", file=sys.stderr)
+    run_dirs = sorted(p for p in batch_dir.iterdir() if p.is_dir() and p.name.startswith("run-"))
+    results = [r for r in (analyze_run(rd) for rd in run_dirs) if r]
+
+    if not results:
+        print("No valid runs found", file=sys.stderr)
         sys.exit(2)
 
-    results = [analyze_run(rd) for rd in run_dirs]
-
-    out_lines = []
-    out_lines.append(f"# LT Pushgateway 構成 統計サマリ ({len(results)} runs)\n")
-    out_lines.append(f"対象 run: {', '.join(r['run_id'] for r in results)}\n")
-    out_lines.append("\n## 計測の定義\n")
-    out_lines.append("- `Scale from Zero`: push queue_length=50 完了直後 (sync_ts) → HPA が scale up を発火した時刻")
-    out_lines.append("- `Scale to Zero`: push queue_length=0 完了時刻 → HPA が scale down を発火した時刻")
-    out_lines.append("- `*_event`: events.jsonl の SuccessfulRescale 時刻")
-    out_lines.append("- `*_pod`: CSV で replicas が変化したのを sampling (5s 間隔) で観測した時刻")
-
-    out_lines.append("\n## 各 run の主要メトリクス (秒)\n")
-    header = "| メトリクス | " + " | ".join(r["run_id"] for r in results) + " | 統計 |"
-    sep = "|---|" + "|".join(["---"] * len(results)) + "|---|"
-    out_lines.append(header)
-    out_lines.append(sep)
-
-    keys = [
-        ("sfz_event_s", "Scale from Zero (sync → SuccessfulRescale)"),
-        ("sfz_pod_s",   "Scale from Zero (sync → first Pod observed)"),
-        ("stz_event_s", "Scale to Zero (push 0 → SuccessfulRescale 'New size: 0')"),
-        ("stz_pod_s",   "Scale to Zero (push 0 → replicas=0 observed)"),
+    lines = [
+        f"# HPA Scale to Zero 計測サマリ ({len(results)} runs)",
+        "",
+        "## 統計",
+        "",
+        f"- Scale from Zero: {fmt_stats([r['sfz'] for r in results])}",
+        f"- Scale to Zero:   {fmt_stats([r['stz'] for r in results])}",
+        "",
+        "## 各 run の値",
+        "",
+        "| run | Scale from Zero (s) | Scale to Zero (s) |",
+        "|---|---:|---:|",
     ]
-    for key, label in keys:
-        values = [r.get(key) for r in results]
-        row = " | ".join(f"{v:.1f}" if v is not None else "n/a" for v in values)
-        out_lines.append(f"| {label} | {row} | {fmt_stats(values)} |")
+    for r in results:
+        sfz = f"{r['sfz']:.1f}" if r["sfz"] is not None else "n/a"
+        stz = f"{r['stz']:.1f}" if r["stz"] is not None else "n/a"
+        lines.append(f"| {r['run_id']} | {sfz} | {stz} |")
 
-    out_lines.append("\n## 観察ポイント\n")
-    out_lines.append("- Scale from Zero (event): Prometheus scrape (15s) + HPA poll (15s) の合算下限〜中央 (実測平均がここに来る)")
-    out_lines.append("- Scale to Zero (event): adapter 経路遅延 (~15s) + stabilizationWindowSeconds (60s) の合算下限")
-    out_lines.append("- Scale to Zero (pod observed): 上記 + sampling 遅延 5s 程度")
-    out_lines.append("- σ が小さいほど決定論的タイマーの寄与が大きい (Scale to Zero は σ 小、Scale from Zero は σ 大の傾向)")
-
-    out_file = batch_dir / "lt-stats.md"
-    out_file.write_text("\n".join(out_lines) + "\n")
-    print(f"Saved: {out_file}")
-    print()
-    print("\n".join(out_lines))
+    out_file = batch_dir / "stats.md"
+    out_file.write_text("\n".join(lines) + "\n")
+    print(f"Saved: {out_file}\n")
+    print("\n".join(lines))
 
 
 if __name__ == "__main__":
