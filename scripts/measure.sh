@@ -30,13 +30,16 @@ echo "timestamp,phase,replicas" > "$CSV"
 echo "timestamp,action" > "$TRIGGERS"
 
 # 1 秒ごとに HPA の currentReplicas を CSV に追記する
+# 注意: HPA は replicas=0 のとき .status.currentReplicas を JSON から省く (omitempty)
+#       jsonpath は空文字を返すので、空なら 0 として扱う
 record_until() {
   local phase="$1"
   local end_time="$2"
   while [ "$(date +%s)" -lt "$end_time" ]; do
     local ts rep
     ts=$(date -u +%FT%TZ)
-    rep=$(kubectl get hpa demo-app-hpa -o jsonpath='{.status.currentReplicas}' 2>/dev/null || echo 0)
+    rep=$(kubectl get hpa demo-app-hpa -o jsonpath='{.status.currentReplicas}' 2>/dev/null || true)
+    [ -z "$rep" ] && rep=0
     echo "${ts},${phase},${rep}" >> "$CSV"
     sleep 1
   done
