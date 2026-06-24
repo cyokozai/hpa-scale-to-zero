@@ -46,11 +46,13 @@ def analyze_run(rundir: Path) -> dict | None:
         return None
 
     # measurement.csv → 最初の replicas 遷移時刻を探す
+    # 空文字は 0 として扱う (古い measure.sh が空を書いた場合の後方互換)
     sfz_ts = stz_ts = None
     with open(csv_file) as f:
         for row in csv.DictReader(f):
             ts = parse_ts(row["timestamp"])
-            rep = int(row["replicas"])
+            rep_str = (row.get("replicas") or "").strip()
+            rep = int(rep_str) if rep_str else 0
             if sfz_ts is None and ts >= push_50 and rep >= 1:
                 sfz_ts = ts
             if stz_ts is None and ts >= push_0 and rep == 0:

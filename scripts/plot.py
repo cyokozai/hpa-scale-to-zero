@@ -53,12 +53,14 @@ def load_run(rundir: Path) -> dict | None:
         return None
 
     # measurement.csv → 時系列 + 遷移時刻
+    # 空文字は 0 として扱う (古い measure.sh の後方互換)
     samples = []
     sfz_ts = stz_ts = None
     with open(csv_file) as f:
         for row in csv.DictReader(f):
             ts = parse_ts(row["timestamp"])
-            rep = int(row["replicas"])
+            rep_str = (row.get("replicas") or "").strip()
+            rep = int(rep_str) if rep_str else 0
             samples.append({"ts": ts, "phase": row["phase"], "replicas": rep})
             if sfz_ts is None and ts >= push_50 and rep >= 1:
                 sfz_ts = ts
