@@ -119,13 +119,13 @@ def fig2_boxplot(runs: list[dict], out: Path):
     stz = [r["stz"] for r in runs if r["stz"] is not None]
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    bp = ax.boxplot([sfz, stz], labels=["Scale from Zero", "Scale to Zero"],
+    bp = ax.boxplot([sfz, stz], tick_labels=["Scale from Zero", "Scale to Zero"],
                     patch_artist=True, widths=0.5,
                     medianprops={"color": "black", "linewidth": 1.5})
     for patch, color in zip(bp["boxes"], ["#3b7", "#d63"]):
         patch.set_facecolor(color); patch.set_alpha(0.65)
     ax.set_ylabel("Latency (sec)")
-    ax.set_title(f"分散と中央値 (n={len(runs)})")
+    ax.set_title(f"Distribution and Median (n={len(runs)})")
     ax.grid(axis="y", linestyle="--", alpha=0.5)
     fig.tight_layout()
     fig.savefig(out, dpi=140)
@@ -157,7 +157,7 @@ def fig3_histogram(runs: list[dict], out: Path):
     a2.set_xlabel("Latency (sec)"); a2.set_ylabel("Frequency")
     a2.grid(linestyle="--", alpha=0.5)
 
-    fig.suptitle("頻度分布 (決定論性の可視化)", fontsize=12)
+    fig.suptitle("Frequency Distribution (timer determinism check)", fontsize=12)
     fig.tight_layout()
     fig.savefig(out, dpi=140)
     plt.close(fig)
@@ -177,12 +177,12 @@ def fig4_representative(runs: list[dict], out: Path):
 
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.step(ts, replicas, where="post", color="#3b7", linewidth=2.2)
-    ax.set_xlabel("時刻 (push 50 からの経過秒)")
+    ax.set_xlabel("Time since push 50 (sec)")
     ax.set_ylabel("replicas")
     ax.set_ylim(-0.3, 3.3)
     ax.grid(linestyle="--", alpha=0.4)
 
-    # マーカ: push 0 と scale-up / scale-down
+    # Markers: push 0 and scale-up / scale-down
     push_0_t = (rep["push_0"] - base).total_seconds()
     ax.axvline(rep["sfz"], color="blue", linestyle="--", alpha=0.6)
     ax.text(rep["sfz"], 3.1, f"  scale up +{rep['sfz']:.1f}s",
@@ -193,7 +193,7 @@ def fig4_representative(runs: list[dict], out: Path):
     ax.text(push_0_t + rep["stz"], 0.3, f"  scale down +{rep['stz']:.1f}s",
             fontsize=9, color="red")
 
-    ax.set_title(f"代表 run ({rep['run_id']}, 中央値 {median_sfz:.1f}s)")
+    ax.set_title(f"Representative run ({rep['run_id']}, median {median_sfz:.1f}s)")
     fig.tight_layout()
     fig.savefig(out, dpi=140)
     plt.close(fig)
@@ -208,10 +208,10 @@ def fig5_overlay(runs: list[dict], out: Path):
         replicas = [s["replicas"] for s in r["samples"]]
         ax.step(ts, replicas, where="post",
                 color=cmap(i / max(len(runs)-1, 1)), alpha=0.55, linewidth=1.0)
-    ax.set_xlabel("時刻 (push 50 からの経過秒)")
+    ax.set_xlabel("Time since push 50 (sec)")
     ax.set_ylabel("replicas")
     ax.set_ylim(-0.3, 3.3)
-    ax.set_title(f"全 {len(runs)} run の replicas 推移 (重ね描き)")
+    ax.set_title(f"All {len(runs)} runs (overlay)")
     ax.grid(linestyle="--", alpha=0.4)
     fig.tight_layout()
     fig.savefig(out, dpi=140)

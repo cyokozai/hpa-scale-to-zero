@@ -1,0 +1,71 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "count": 12,
+            "eventTime": null,
+            "firstTimestamp": "2026-06-19T00:01:52Z",
+            "involvedObject": {
+                "apiVersion": "autoscaling/v2",
+                "kind": "HorizontalPodAutoscaler",
+                "name": "demo-app-hpa",
+                "namespace": "default",
+                "resourceVersion": "321660",
+                "uid": "ac90e353-1a87-45d1-bcbf-eb899b0114fb"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-06-24T21:26:09Z",
+            "message": "New size: 0; reason: All metrics below target",
+            "metadata": {
+                "creationTimestamp": "2026-06-24T20:58:23Z",
+                "name": "demo-app-hpa.18ba52801f3559d6",
+                "namespace": "default",
+                "resourceVersion": "323709",
+                "uid": "b37c1cdd-65a7-490e-b38b-63e5703559e9"
+            },
+            "reason": "SuccessfulRescale",
+            "reportingComponent": "horizontal-pod-autoscaler",
+            "reportingInstance": "",
+            "source": {
+                "component": "horizontal-pod-autoscaler"
+            },
+            "type": "Normal"
+        },
+        {
+            "apiVersion": "v1",
+            "count": 11,
+            "eventTime": null,
+            "firstTimestamp": "2026-06-24T10:02:36Z",
+            "involvedObject": {
+                "apiVersion": "autoscaling/v2",
+                "kind": "HorizontalPodAutoscaler",
+                "name": "demo-app-hpa",
+                "namespace": "default",
+                "resourceVersion": "297833",
+                "uid": "ac90e353-1a87-45d1-bcbf-eb899b0114fb"
+            },
+            "kind": "Event",
+            "lastTimestamp": "2026-06-24T21:24:24Z",
+            "message": "New size: 3; reason: external metric queue_length(\u0026LabelSelector{MatchLabels:map[string]string{job: demo-queue,},MatchExpressions:[]LabelSelectorRequirement{},}) above target",
+            "metadata": {
+                "creationTimestamp": "2026-06-24T20:56:23Z",
+                "name": "demo-app-hpa.18bbfc2f1cf0b79a",
+                "namespace": "default",
+                "resourceVersion": "323586",
+                "uid": "a51e3134-9edd-4c30-8e0f-1496224956f8"
+            },
+            "reason": "SuccessfulRescale",
+            "reportingComponent": "horizontal-pod-autoscaler",
+            "reportingInstance": "",
+            "source": {
+                "component": "horizontal-pod-autoscaler"
+            },
+            "type": "Normal"
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

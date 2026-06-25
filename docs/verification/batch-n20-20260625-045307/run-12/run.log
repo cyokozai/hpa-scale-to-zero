@@ -1,0 +1,7 @@
+[2026-06-24T21:30:15Z] === MEASUREMENT START ===
+pod/push-3459468 created
+✓ pushed: queue_length=50 (job=demo-queue)
+pod/push-5656379 created
+✓ pushed: queue_length=0 (job=demo-queue)
+[2026-06-24T21:32:50Z] === MEASUREMENT END ===
+[2026-06-24T21:32:50Z] CSV rows: 139
