@@ -3,9 +3,6 @@ repositories:
     url: https://prometheus-community.github.io/helm-charts
 
 releases:
-  # Prometheus
-  # Pushgateway を 15s 間隔でスクレイプし、queue_length メトリクスを保持する。
-  # honor_labels: true で Pushgateway の job ラベルを保持する（exported_job への改名を防ぐ）。
   - name: prometheus
     namespace: monitoring
     createNamespace: true
@@ -14,7 +11,6 @@ releases:
     values:
       - alertmanager:
           enabled: false
-        # chart 内蔵の Pushgateway は無効化し、独立 release で管理する。
         prometheus-pushgateway:
           enabled: false
         kube-state-metrics:
@@ -43,15 +39,11 @@ releases:
                 static_configs:
                   - targets:
                       - prometheus-pushgateway.monitoring.svc:9091
-                # prometheus-adapter が namespace ラベル経由でメトリクスを取れるよう付与
                 metric_relabel_configs:
                   - source_labels: []
                     target_label: namespace
                     replacement: default
 
-  # Pushgateway
-  # curl などで push したメトリクスを Prometheus に pull させるためのキャッシュ。
-  # Scale to Zero の前提「Pod=0 でも存在し続ける外部メトリクス」を最小コストで実現する。
   - name: prometheus-pushgateway
     namespace: monitoring
     createNamespace: true
@@ -66,9 +58,6 @@ releases:
             cpu: 200m
             memory: 64Mi
 
-  # prometheus-adapter
-  # Prometheus の queue_length を External Metrics API に変換する。
-  # K8s HPA が /apis/external.metrics.k8s.io 経由で値を取得できるようになる。
   - name: prometheus-adapter
     namespace: monitoring
     createNamespace: true
@@ -88,11 +77,9 @@ releases:
         rules:
           default: false
           external:
-            # Pushgateway 経由で push された queue_length{job=...,namespace=...} を拾う
             - seriesQuery: 'queue_length{job!="",namespace!=""}'
               resources:
                 template: "<<.Resource>>"
               name:
                 as: "queue_length"
-              # job ラベルでフィルタ可能にする（HPA の selector.matchLabels.job 用）
               metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (job)'
