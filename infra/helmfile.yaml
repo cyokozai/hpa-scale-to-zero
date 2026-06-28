@@ -1,37 +1,13 @@
 repositories:
-  - name: strimzi
-    url: https://strimzi.io/charts
   - name: prometheus-community
     url: https://prometheus-community.github.io/helm-charts
 
 releases:
-  # Strimzi Kafka Operator
-  # Kafka on Kubernetes を管理する。Kafka / KafkaTopic / KafkaUser リソースを提供する。
-  # Consumer Group Lag メトリクスの発生源として使用する。
-  - name: strimzi
-    namespace: strimzi
-    createNamespace: true
-    chart: strimzi/strimzi-kafka-operator
-    # 0.45.0 は Kubernetes v1.36 の /version API に追加された emulationMajor フィールドを
-    # fabric8 client が認識できずクラッシュする。1.0.0 で修正済み。
-    version: "1.0.0"
-    values:
-      - resources:
-          requests:
-            cpu: 200m
-            memory: 256Mi
-          limits:
-            cpu: 1000m
-            memory: 512Mi
-
-  # Prometheus
-  # Strimzi Kafka Exporter が公開する kafka_consumergroup_lag を収集する。
-  # K8s HPAScaleToZero / KEDA 両クラスターで共通して使用する。
   - name: prometheus
     namespace: monitoring
     createNamespace: true
     chart: prometheus-community/prometheus
-    version: "27.3.0"
+    version: "29.12.0"
     values:
       - alertmanager:
           enabled: false
@@ -52,21 +28,58 @@ releases:
               cpu: 500m
               memory: 512Mi
           global:
-            # Kafka Exporter を 15 秒ごとにスクレイプ
-            # デフォルト 1 分では HPA の反応が遅すぎるため短縮する
             scrape_interval: 15s
             evaluation_interval: 15s
         serverFiles:
           prometheus.yml:
             scrape_configs:
-              - job_name: kafka-exporter
+              - job_name: pushgateway
                 scrape_interval: 15s
+                honor_labels: true
                 static_configs:
                   - targets:
-                      - demo-kafka-exporter.kafka.svc:9404
-                # prometheus-adapter が External Metrics API の namespace パスを
-                # Prometheus ラベルに変換できるよう namespace ラベルを付与する
+                      - prometheus-pushgateway.monitoring.svc:9091
                 metric_relabel_configs:
                   - source_labels: []
                     target_label: namespace
                     replacement: default
+
+  - name: prometheus-pushgateway
+    namespace: monitoring
+    createNamespace: true
+    chart: prometheus-community/prometheus-pushgateway
+    version: "3.6.1"
+    values:
+      - resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 64Mi
+
+  - name: prometheus-adapter
+    namespace: monitoring
+    createNamespace: true
+    chart: prometheus-community/prometheus-adapter
+    version: "5.3.0"
+    values:
+      - prometheus:
+          url: http://prometheus-server.monitoring.svc
+          port: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+        rules:
+          default: false
+          external:
+            - seriesQuery: 'queue_length{job!="",namespace!=""}'
+              resources:
+                template: "<<.Resource>>"
+              name:
+                as: "queue_length"
+              metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (job)'

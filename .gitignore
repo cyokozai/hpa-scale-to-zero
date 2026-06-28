@@ -139,3 +139,11 @@ $RECYCLE.BIN/
 .venv/
 
 scripts/__pycache__
+
+# 計測データ (再現可能なため git 管理外)
+docs/verification/
+
+# Python venv とキャッシュ
+.venv/
+__pycache__/
+*.pyc
